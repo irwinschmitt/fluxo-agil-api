@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir --upgrade poetry
 
 RUN poetry install
 
-COPY ./sql /app/sql
+COPY ./app /app/app
 
 
-CMD ["poetry", "run", "uvicorn", "sql.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
