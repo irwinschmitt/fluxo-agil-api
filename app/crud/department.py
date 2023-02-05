@@ -1,10 +1,12 @@
 from sqlalchemy.orm import Session
 
-from .. import models, schemas
+from ..models import orm
+
+from ..models import pydantic
 
 
-def create_department(db: Session, department: schemas.DepartmentCreate):
-    db_department = models.Department(
+def create_department(db: Session, department: pydantic.DepartmentCreate):
+    db_department = orm.Department(
         sigaa_id=department.sigaa_id,
         title=department.title,
         acronym=department.acronym
@@ -18,12 +20,12 @@ def create_department(db: Session, department: schemas.DepartmentCreate):
 
 
 def get_departments(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Department).offset(skip).limit(limit).all()
+    return db.query(orm.Department).offset(skip).limit(limit).all()
 
 
 def get_department(db: Session, department_id):
-    return db.query(models.Department).filter(models.Department.id == department_id).one()
+    return db.query(orm.Department).filter(orm.Department.id == department_id).one()
 
 
 def get_department_by_sigaa_id(db: Session, department_sigaa_id: int):
-    return db.query(models.Department).filter(models.Department.sigaa_id == department_sigaa_id).first()
+    return db.query(orm.Department).filter(orm.Department.sigaa_id == department_sigaa_id).first()

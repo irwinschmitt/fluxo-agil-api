@@ -2,7 +2,7 @@ from enum import Enum
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import ENUM
 
-from .database import Base
+from ..database import Base
 
 
 class Department(Base):

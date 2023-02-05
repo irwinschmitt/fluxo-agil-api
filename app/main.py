@@ -1,11 +1,12 @@
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
-from .crud import department
-from . import models, schemas
-from .database import SessionLocal, engine
+from app.database import SessionLocal, engine
+from app.models.orm import Base
+from app.models.pydantic import Department, DepartmentCreate
+from app.crud import department
 
-models.Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -20,8 +21,8 @@ def get_db():
         db.close()
 
 
-@app.post("/departments/", response_model=schemas.Department)
-def create_department(department: schemas.DepartmentCreate, db: Session = Depends(get_db)):
+@app.post("/departments/", response_model=Department)
+def create_department(department: DepartmentCreate, db: Session = Depends(get_db)):
     db_department = department.get_department_by_sigaa_id(
         db, department.sigaa_id)
 
@@ -34,11 +35,11 @@ def create_department(department: schemas.DepartmentCreate, db: Session = Depend
     return department.create_department(db, department)
 
 
-@app.get("/departments/", response_model=list[schemas.Department])
+@app.get("/departments/", response_model=list[Department])
 def read_departments(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return department.get_departments(db, skip, limit)
 
 
-@app.get("/departments/{department_id}", response_model=schemas.Department)
+@app.get("/departments/{department_id}", response_model=Department)
 def read_department(department_id: int, db: Session = Depends(get_db)):
     return department.get_department(db, department_id)
