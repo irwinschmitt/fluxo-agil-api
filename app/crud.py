@@ -3,42 +3,27 @@ from sqlalchemy.orm import Session
 from . import models, schemas
 
 
-def get_user(db: Session, user_id: int):
-    return db.query(models.User).filter(models.User.id == user_id).first()
-
-
-def get_user_by_email(db: Session, email: str):
-    return db.query(models.User).filter(models.User.email == email).first()
-
-
-def get_users(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.User).offset(skip).limit(limit).all()
-
-
-def get_items(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Item).offset(skip).limit(limit).all()
-
-
-def create_user(db: Session, user: schemas.UserCreate):
-    fake_hashed_password = user.password + "notreallyhashed"
-
-    db_user = models.User(
-        email=user.email,
-        hashed_password=fake_hashed_password
+def create_department(db: Session, department: schemas.DepartmentCreate):
+    db_department = models.Department(
+        sigaa_id=department.sigaa_id,
+        title=department.title,
+        acronym=department.acronym
     )
 
-    db.add(db_user)
+    db.add(db_department)
     db.commit()
-    db.refresh(db_user)
+    db.refresh(db_department)
 
-    return db_user
+    return db_department
 
 
-def create_user_item(db: Session, item: schemas.ItemCreate, user_id: int):
-    db_item = models.Item(**item.dict(), owner_id=user_id)
+def get_departments(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Department).offset(skip).limit(limit).all()
 
-    db.add(db_item)
-    db.commit()
-    db.refresh(db_item)
 
-    return db_item
+def get_department(db: Session, department_id):
+    return db.query(models.Department).filter(models.Department.id == department_id).one()
+
+
+def get_department_by_sigaa_id(db: Session, department_sigaa_id: int):
+    return db.query(models.Department).filter(models.Department.sigaa_id == department_sigaa_id).first()

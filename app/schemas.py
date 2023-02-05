@@ -1,35 +1,19 @@
 from pydantic import BaseModel
+from enum import Enum
 
 
-class ItemBase(BaseModel):
+class DepartmentBase(BaseModel):
+    sigaa_id: int
+    acronym: str
     title: str
-    description: str | None = None
 
 
-class ItemCreate(ItemBase):
+class DepartmentCreate(DepartmentBase):
     pass
 
 
-class Item(ItemBase):
+class Department(DepartmentBase):
     id: int
-    owner_id: int
-
-    class Config:
-        orm_mode = True
-
-
-class UserBase(BaseModel):
-    email: str
-
-
-class UserCreate(UserBase):
-    password: str
-
-
-class User(UserBase):
-    id: int
-    is_active: bool
-    items: list[Item] = []
 
     class Config:
         orm_mode = True

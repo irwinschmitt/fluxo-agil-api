@@ -19,42 +19,24 @@ def get_db():
         db.close()
 
 
-@app.post("/users/", response_model=schemas.User)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    db_user = crud.get_user_by_email(db, email=user.email)
+@app.post("/departments/", response_model=schemas.Department)
+def create_department(department: schemas.DepartmentCreate, db: Session = Depends(get_db)):
+    db_department = crud.get_department_by_sigaa_id(db, department.sigaa_id)
 
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    if db_department:
+        raise HTTPException(
+            status_code=400,
+            detail="Já existe um departamento com esse id do SIGAA."
+        )
 
-    return crud.create_user(db=db, user=user)
-
-
-@app.get("/users/", response_model=list[schemas.User])
-def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    users = crud.get_users(db, skip=skip, limit=limit)
-
-    return users
+    return crud.create_department(db, department)
 
 
-@app.get("/users/{user_id}", response_model=schemas.User)
-def read_user(user_id: int, db: Session = Depends(get_db)):
-    db_user = crud.get_user(db, user_id=user_id)
-
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    return db_user
+@app.get("/departments/", response_model=list[schemas.Department])
+def read_departments(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_departments(db, skip, limit)
 
 
-@app.post("/users/{user_id}/items/", response_model=schemas.Item)
-def create_item_for_user(
-    user_id: int, item: schemas.ItemCreate, db: Session = Depends(get_db)
-):
-    return crud.create_user_item(db=db, item=item, user_id=user_id)
-
-
-@app.get("/items/", response_model=list[schemas.Item])
-def read_items(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    items = crud.get_items(db, skip=skip, limit=limit)
-
-    return items
+@app.get("/departments/{department_id}", response_model=schemas.Department)
+def read_department(department_id: int, db: Session = Depends(get_db)):
+    return crud.get_department(db, department_id)

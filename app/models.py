@@ -9,7 +9,7 @@ class Department(Base):
     __tablename__ = "Department"
 
     id = Column(Integer, primary_key=True, index=True)
-    sigaaId = Column(Integer, index=True)
+    sigaa_id = Column(Integer, index=True)
     acronym = Column(String)
     title = Column(String)
 
@@ -28,7 +28,7 @@ class Program(Base):
     __tablename__ = "Program"
 
     id = Column(Integer, primary_key=True, index=True)
-    sigaaId = Column(Integer, index=True)
+    sigaa_id = Column(Integer, index=True)
     title = Column(String)
     degree = Column(ENUM(ProgramDegree, name="ProgramDegree"))
     shift = Column(ENUM(ProgramShift, name="ProgramShift"))
@@ -40,7 +40,7 @@ class Curriculum(Base):
     __tablename__ = "Curriculum"
 
     id = Column(Integer, primary_key=True, index=True)
-    sigaaId = Column(Integer, index=True)
+    sigaa_id = Column(Integer, index=True)
     active = Column(Boolean)
     start_year = Column(Integer)
     star_period = Column(Integer)
@@ -67,7 +67,7 @@ class Component(Base):
     __tablename__ = "Component"
 
     id = Column(Integer, primary_key=True, index=True)
-    sigaaId = Column(Integer, index=True)
+    sigaa_id = Column(String, index=True)
     title = Column(String)
     type = Column(ENUM(ComponentType, name="ComponentType"))
 
