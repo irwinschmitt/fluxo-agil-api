@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from . import models, schemas
+from .. import models, schemas
 
 
 def create_department(db: Session, department: schemas.DepartmentCreate):
