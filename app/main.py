@@ -22,9 +22,9 @@ def get_db():
 
 
 @app.post("/departments/", response_model=Department)
-def create_department(department: DepartmentCreate, db: Session = Depends(get_db)):
+def create_department(new_department: DepartmentCreate, db: Session = Depends(get_db)):
     db_department = department.get_department_by_sigaa_id(
-        db, department.sigaa_id)
+        db, new_department.sigaa_id)
 
     if db_department:
         raise HTTPException(
@@ -32,7 +32,7 @@ def create_department(department: DepartmentCreate, db: Session = Depends(get_db
             detail="Já existe um departamento com esse id do SIGAA."
         )
 
-    return department.create_department(db, department)
+    return department.create_department(db, new_department)
 
 
 @app.get("/departments/", response_model=list[Department])
