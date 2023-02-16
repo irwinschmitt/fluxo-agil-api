@@ -17,3 +17,9 @@ class UserUpdatePasswordRequest(BaseRequest):
 class UserCreateRequest(BaseRequest):
     email: EmailStr
     password: str
+
+
+class DepartmentCreateRequest(BaseRequest):
+    sigaa_id: int
+    acronym: str
+    title: str
