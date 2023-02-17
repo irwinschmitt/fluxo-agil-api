@@ -20,3 +20,10 @@ class AccessTokenResponse(BaseResponse):
 class UserResponse(BaseResponse):
     id: str
     email: EmailStr
+
+
+class DepartmentResponse(BaseResponse):
+    id: str
+    sigaa_id: int
+    acronym: str
+    title: str
