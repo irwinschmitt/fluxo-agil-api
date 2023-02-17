@@ -20,9 +20,9 @@ from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-intpk = Annotated[int, mapped_column(primary_key=True, index=True)]
-intindex = Annotated[int, mapped_column(index=True)]
-strindex = Annotated[str, mapped_column(index=True)]
+int_pk = Annotated[int, mapped_column(primary_key=True)]
+int_unique_index = Annotated[int, mapped_column(index=True, unique=True)]
+str_unique_index = Annotated[str, mapped_column(index=True, unique=True)]
 
 
 class Base(DeclarativeBase):
@@ -44,8 +44,8 @@ class User(Base):
 class Department(Base):
     __tablename__ = "department"
 
-    id: Mapped[intpk]
-    sigaa_id: Mapped[intindex]
+    id: Mapped[int_pk]
+    sigaa_id: Mapped[int_unique_index]
     acronym: Mapped[str]
     title: Mapped[str]
 
@@ -53,8 +53,8 @@ class Department(Base):
 class Program(Base):
     __tablename__ = "program"
 
-    id: Mapped[intpk]
-    sigaa_id: Mapped[intindex]
+    id: Mapped[int_pk]
+    sigaa_id: Mapped[int_unique_index]
     title: Mapped[str]
     degree: Mapped[Literal["BACHELOR", "LICENTIATE"]]
     shift: Mapped[Literal["DAY", "NIGHT"]]
@@ -65,8 +65,8 @@ class Program(Base):
 class Curriculum(Base):
     __tablename__ = "curriculum"
 
-    id: Mapped[intpk]
-    sigaa_id: Mapped[intindex]
+    id: Mapped[int_pk]
+    sigaa_id: Mapped[int_unique_index]
     active: Mapped[bool]
     start_year: Mapped[int]
     star_period: Mapped[int]
@@ -87,8 +87,8 @@ class Curriculum(Base):
 class Component(Base):
     __tablename__ = "component"
 
-    id: Mapped[intpk]
-    sigaa_id: Mapped[strindex]
+    id: Mapped[int_pk]
+    sigaa_id: Mapped[str_unique_index]
     title: Mapped[str]
     type: Mapped[Literal["COURSE", "ACTIVITY"]]
 
@@ -98,7 +98,7 @@ class Component(Base):
 class CurriculumComponent(Base):
     __tablename__ = "curriculum_component"
 
-    id: Mapped[intpk]
+    id: Mapped[int_pk]
     type: Mapped[Literal["MANDATORY", "ELECTIVE"]]
     percentage_prerequisite: Mapped[int]
 
@@ -109,7 +109,7 @@ class CurriculumComponent(Base):
 class PrerequisiteOption(Base):
     __tablename__ = "prerequisite_option"
 
-    id: Mapped[intpk]
+    id: Mapped[int_pk]
 
     component_id: Mapped[int] = mapped_column(ForeignKey("component.id"))
 
@@ -117,7 +117,7 @@ class PrerequisiteOption(Base):
 class PrerequisiteComponent(Base):
     __tablename__ = "prerequisite_component"
 
-    id: Mapped[intpk]
+    id: Mapped[int_pk]
 
     component_id: Mapped[int] = mapped_column(ForeignKey("component.id"))
     prerequisite_option_id: Mapped[int] = mapped_column(
@@ -128,7 +128,7 @@ class PrerequisiteComponent(Base):
 class EquivalenceOption(Base):
     __tablename__ = "equivalence_option"
 
-    id: Mapped[intpk]
+    id: Mapped[int_pk]
 
     component_id: Mapped[int] = mapped_column(ForeignKey("component.id"))
 
@@ -136,7 +136,7 @@ class EquivalenceOption(Base):
 class EquivalenceComponent(Base):
     __tablename__ = "equivalence_component"
 
-    id: Mapped[intpk]
+    id: Mapped[int_pk]
 
     component_id: Mapped[int] = mapped_column(ForeignKey("component.id"))
     equivalence_option_id: Mapped[int] = mapped_column(
@@ -147,7 +147,7 @@ class EquivalenceComponent(Base):
 class Corequisite(Base):
     __tablename__ = "corequisite"
 
-    id: Mapped[intpk]
+    id: Mapped[int_pk]
 
     component_id: Mapped[int] = mapped_column(ForeignKey("component.id"))
     corequisite_id: Mapped[int] = mapped_column(ForeignKey("component.id"))
