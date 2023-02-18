@@ -3,7 +3,6 @@ import re
 
 from pyppeteer import launch
 from pyppeteer.browser import Page
-from pyppeteer.element_handle import ElementHandle
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,21 +16,18 @@ graduation_components_link = base_url + "/componentes/busca_componentes.jsf"
 
 
 def raise_exception_if_sigaa_id_is_duplicated(
-    departments: list[DepartmentCreateRequest],
+    elements: list,
 ):
-    for index_a, department_a in enumerate(departments):
-        for index_b, department_b in enumerate(departments):
-            if (
-                department_a["sigaa_id"] == department_b["sigaa_id"]
-                and index_a != index_b
-            ):
-                raise Exception(f"Duplicated sigaa_id: {department_a and department_b}")
+    for index_a, element_a in enumerate(elements):
+        for index_b, element_b in enumerate(elements):
+            if element_a["sigaa_id"] == element_b["sigaa_id"] and index_a != index_b:
+                raise Exception(f"Duplicated sigaa_id: {element_a and element_b}")
 
 
-def raise_exception_if_empty_sigaa_id(departments: list[DepartmentCreateRequest]):
-    for department in departments:
-        if not department["sigaa_id"]:
-            raise Exception(f"Empty sigaa_id: {department}")
+def raise_exception_if_empty_sigaa_id(elements: list):
+    for element in elements:
+        if not element["sigaa_id"]:
+            raise Exception(f"Empty sigaa_id: {element}")
 
 
 async def get_departments(page: Page):
@@ -109,51 +105,58 @@ async def create_departments(
     print("Departments created")
 
 
-async def get_programs(page: Page, department_acronym: str = None):
+async def get_programs(page: Page, session: AsyncSession):
     programs = []
 
     await page.goto(graduation_programs_link)
-    programs_table_rows_elements = await page.querySelectorAll(
-        "table.listagem tbody tr"
-    )
-    programs_start_index = 0
-    programs_end_index = len(programs_table_rows_elements) + 1
-
-    if department_acronym:
-        department_xpath = (
-            f"//td[contains(text(), '{department_acronym} -')]/ancestor::tr"
-        )
-        previous_departments = f"{department_xpath}/preceding-sibling::tr"
-        next_department_xpath = f"{department_xpath}/following-sibling::tr[not(@class)][1]/preceding-sibling::tr"
-
-        programs_start_index = len(await page.xpath(previous_departments)) + 1
-        programs_end_index = len(await page.xpath(next_department_xpath)) + 1
-
-    programs_rows_elements: list[ElementHandle] = await page.xpath(
-        f"//tbody/tr \
-            [position() > {programs_start_index} and position() < {programs_end_index}] \
-            [@class='linhaPar' or @class='linhaImpar']"
+    programs_rows_elements = await page.querySelectorAll(
+        "table.listagem tbody tr.linhaPar, table.listagem tbody tr.linhaImpar",
     )
 
+    # for each program_row_element, get the previous tr element that does not have class
     for program_row_element in programs_rows_elements:
-        program: list[str] = await program_row_element.querySelectorAllEval(
-            "td", "(elements) => elements.map((element) => element.innerText)"
+        program_attributes: list[str] = await program_row_element.querySelectorAllEval(
+            "td", "tds => tds.map(td => td.innerText)"
         )
 
-        program_link_page_function = '(element) => element.querySelector("a").href'
         program_link = await page.evaluate(
-            program_link_page_function, program_row_element
+            '(element) => element.querySelector("a").href', program_row_element
         )
+
         sigaa_id = re.search("id=([0-9]*)&", program_link).group(1)
+
+        department_inner_text: str = await page.evaluate(
+            "row => row.previousSiblings()\
+                .find(({classList}) => !classList.contains('linhaPar') && !classList.contains('linhaImpar'))\
+                .innerText",
+            program_row_element,
+        )
+
+        department_acronym = department_inner_text.split(" - ")[0]
+
+        result = await session.execute(
+            select(Department).where(Department.acronym == department_acronym)
+        )
+
+        db_department = result.scalars().first()
+
+        if db_department is None:
+            raise Exception(f"Department not found: {department_acronym}")
+
+        db_department.id
 
         programs.append(
             {
                 "sigaa_id": int(sigaa_id),
-                "title": program[0],
-                "degree": program[1].upper(),
-                "shift": program[2],
+                "title": program_attributes[0],
+                "degree": program_attributes[1].upper(),
+                "shift": program_attributes[2],
+                "department_id": db_department.id,
             }
         )
+
+    raise_exception_if_empty_sigaa_id(programs)
+    raise_exception_if_sigaa_id_is_duplicated(programs)
 
     return programs
 
@@ -166,8 +169,8 @@ async def main():
         departments = await get_departments(page)
         await create_departments(session, departments)
 
-        programs = await get_programs(page, department_acronym="FGA")
-        print(f"{len(programs)} programs to be created")
+        programs = await get_programs(page, session)
+        print(programs)
 
     await browser.close()
 
