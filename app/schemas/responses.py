@@ -27,3 +27,12 @@ class DepartmentResponse(BaseResponse):
     sigaa_id: int
     acronym: str
     title: str
+
+
+class ProgramResponse(BaseResponse):
+    id: str
+    sigaa_id: int
+    title: str
+    degree: str
+    shift: str
+    department_id: str
