@@ -4,12 +4,34 @@ import re
 from pyppeteer import launch
 from pyppeteer.browser import Page
 from pyppeteer.element_handle import ElementHandle
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.session import async_session
+from app.models import Department
 from app.schemas.requests import DepartmentCreateRequest
 
 base_url = "https://sig.unb.br/sigaa/public"
 graduation_programs_link = base_url + "/curso/lista.jsf?nivel=G&aba=p-graduacao"
 graduation_components_link = base_url + "/componentes/busca_componentes.jsf"
+
+
+def raise_exception_if_sigaa_id_is_duplicated(
+    departments: list[DepartmentCreateRequest],
+):
+    for index_a, department_a in enumerate(departments):
+        for index_b, department_b in enumerate(departments):
+            if (
+                department_a["sigaa_id"] == department_b["sigaa_id"]
+                and index_a != index_b
+            ):
+                raise Exception(f"Duplicated sigaa_id: {department_a and department_b}")
+
+
+def raise_exception_if_empty_sigaa_id(departments: list[DepartmentCreateRequest]):
+    for department in departments:
+        if not department["sigaa_id"]:
+            raise Exception(f"Empty sigaa_id: {department}")
 
 
 async def get_departments(page: Page):
@@ -41,15 +63,50 @@ async def get_departments(page: Page):
             "(element) => element.innerText", department_element
         )
 
+        department_inner_text = re.sub(r"\s+", " ", department_inner_text)
+
         for index, department in enumerate(departments):
-            if department["title"] in department_inner_text:
-                id = await page.evaluate(
+            department["title"] = re.sub(r"\s+", " ", department["title"])
+
+            if department["title"] == department_inner_text.split(" - ")[0]:
+                sigaa_id = await page.evaluate(
                     "(element) => element.getAttribute('value')", department_element
                 )
 
-                departments[index]["sigaa_id"] = int(id)
+                departments[index]["sigaa_id"] = int(sigaa_id)
+
+    raise_exception_if_sigaa_id_is_duplicated(departments)
+    raise_exception_if_empty_sigaa_id(departments)
 
     return departments
+
+
+async def create_departments(
+    session: AsyncSession, departments: list[DepartmentCreateRequest]
+):
+    result = await session.execute(
+        select(Department).where(
+            Department.sigaa_id.in_([d["sigaa_id"] for d in departments])
+        )
+    )
+
+    db_departments = result.scalars().all()
+
+    for department in departments:
+        db_department = next(
+            (d for d in db_departments if d.sigaa_id == department["sigaa_id"]), None
+        )
+
+        if db_department is None:
+            db_department = Department(**department)
+            session.add(db_department)
+        else:
+            db_department.acronym = department["acronym"]
+            db_department.title = department["title"]
+
+    await session.commit()
+
+    print("Departments created")
 
 
 async def get_programs(page: Page, department_acronym: str = None):
@@ -102,14 +159,15 @@ async def get_programs(page: Page, department_acronym: str = None):
 
 
 async def main():
-    browser = await launch(headless=False, executablePath="/usr/bin/google-chrome")
+    browser = await launch(headless=True, executablePath="/usr/bin/google-chrome")
     [page] = await browser.pages()
 
-    departments = await get_departments(page)
-    programs = await get_programs(page, department_acronym="FGA")
+    async with async_session() as session:
+        departments = await get_departments(page)
+        await create_departments(session, departments)
 
-    print(departments)
-    print(programs)
+        programs = await get_programs(page, department_acronym="FGA")
+        print(f"{len(programs)} programs to be created")
 
     await browser.close()
 
