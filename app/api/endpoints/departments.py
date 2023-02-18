@@ -116,3 +116,21 @@ async def read_department(
         raise HTTPException(status_code=404, detail="Departamento não encontrado")
 
     return department
+
+
+@router.delete("/departments/{department_id}", status_code=204)
+async def delete_department(
+    department_id: int, session: AsyncSession = Depends(deps.get_session)
+):
+    """Delete a department"""
+    result = await session.execute(
+        select(Department).where(Department.id == department_id)
+    )
+
+    department = result.scalars().one_or_none()
+
+    if department is None:
+        raise HTTPException(status_code=404, detail="Departamento não encontrado")
+
+    await session.delete(department)
+    await session.commit()
