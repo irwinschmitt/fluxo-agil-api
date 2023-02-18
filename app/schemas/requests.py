@@ -23,3 +23,8 @@ class DepartmentCreateRequest(BaseRequest):
     sigaa_id: int
     acronym: str
     title: str
+
+
+class DepartmentUpdateRequest(BaseRequest):
+    acronym: str | None
+    title: str | None

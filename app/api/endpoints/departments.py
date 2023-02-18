@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.models import Department
-from app.schemas.requests import DepartmentCreateRequest
+from app.schemas.requests import DepartmentCreateRequest, DepartmentUpdateRequest
 from app.schemas.responses import DepartmentResponse
 
 router = APIRouter()
@@ -59,6 +59,34 @@ async def create_departments(
             db_department.title = department.title
 
     await session.commit()
+
+
+@router.patch("/departments/{department_id}", response_model=DepartmentResponse)
+async def update_department(
+    department_id: int,
+    department: DepartmentUpdateRequest,
+    session: AsyncSession = Depends(deps.get_session),
+):
+    """Update a department"""
+    result = await session.execute(
+        select(Department).where(Department.id == department_id)
+    )
+
+    db_department = result.scalars().one_or_none()
+
+    if db_department is None:
+        raise HTTPException(status_code=404, detail="Departamento não encontrado")
+
+    if department.acronym is not None:
+        db_department.acronym = department.acronym
+
+    if department.title is not None:
+        db_department.title = department.title
+
+    await session.commit()
+    await session.refresh(db_department)
+
+    return db_department
 
 
 @router.get("/departments", response_model=list[DepartmentResponse])
