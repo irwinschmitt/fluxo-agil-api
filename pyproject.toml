@@ -1,5 +1,5 @@
 [tool.poetry]
-authors = ["admin <admin@example.com>"]
+authors = ["Irwin Schmitt <irwinschmitt@gmail.com>"]
 description = "FastAPI project generated using minimal-fastapi-postgres-template."
 name = "fluxo-agil-api"
 version = "0.1.0-alpha"
