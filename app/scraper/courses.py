@@ -13,6 +13,8 @@ from app.scraper.utils import (
 
 
 async def get_programs(page: Page, session: AsyncSession):
+    print("Scraping SIGAA programs...")
+
     programs = []
 
     await page.goto(graduation_programs_link)

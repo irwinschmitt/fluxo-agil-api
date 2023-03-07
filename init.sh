@@ -1,7 +1,7 @@
 #!/bin/bash
 
-echo "Run migrations"
+echo "Running migrations..."
 alembic upgrade head
 
-echo "Create initial data in DB"
+echo "Creating initial data..."
 python -m app.initial_data

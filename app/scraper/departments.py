@@ -14,6 +14,8 @@ from app.scraper.utils import (
 
 
 async def get_departments(page: Page):
+    print("Scraping SIGAA departments...")
+
     departments: list[DepartmentCreateRequest] = []
 
     await page.goto(graduation_programs_link)
@@ -63,6 +65,8 @@ async def get_departments(page: Page):
 async def create_departments(
     session: AsyncSession, departments: list[DepartmentCreateRequest]
 ):
+    print("Creating departments in the database...")
+
     result = await session.execute(
         select(Department).where(
             Department.sigaa_id.in_([d["sigaa_id"] for d in departments])
