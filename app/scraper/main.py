@@ -10,12 +10,11 @@ from app.scraper.departments import create_departments, get_departments
 
 async def create_sigaa_data(session: AsyncSession):
     browser = await launch(headless=True, executablePath="/usr/bin/google-chrome")
-    [page] = await browser.pages()
 
     departments = await get_departments(browser)
     await create_departments(session, departments)
 
-    programs = await get_programs(page, session)
+    programs = await get_programs(browser, session)
     print(f"[TODO] Create {len(programs)} programs")
 
     await browser.close()

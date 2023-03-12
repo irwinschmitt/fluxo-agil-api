@@ -1,3 +1,6 @@
+from pyppeteer.browser import Browser
+
+
 def raise_exception_if_sigaa_id_is_duplicated(
     elements: list,
 ):
@@ -11,3 +14,17 @@ def raise_exception_if_empty_sigaa_id(elements: list):
     for element in elements:
         if not element["sigaa_id"]:
             raise Exception(f"Empty sigaa_id: {element}")
+
+
+async def get_page(browser: Browser, url: str):
+    pages = await browser.pages()
+
+    for page in pages:
+        if page.url == url:
+            return page
+
+    page = await browser.newPage()
+
+    await page.goto(url)
+
+    return page

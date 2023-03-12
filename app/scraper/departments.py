@@ -7,16 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Department
 from app.schemas.requests import DepartmentCreateRequest
 from app.scraper.constants import graduation_components_link, graduation_programs_link
+from app.scraper.utils import get_page
 
 
 async def get_departments(browser: Browser):
     print("Scraping SIGAA departments...")
 
-    programs_page = await browser.newPage()
-    components_page = await browser.newPage()
-
-    await programs_page.goto(graduation_programs_link)
-    await components_page.goto(graduation_components_link)
+    programs_page = await get_page(browser, url=graduation_programs_link)
+    components_page = await get_page(browser, url=graduation_components_link)
 
     departments: list[DepartmentCreateRequest] = []
 

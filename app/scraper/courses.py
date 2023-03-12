@@ -1,23 +1,25 @@
 import re
 
-from pyppeteer.browser import Page
+from pyppeteer.browser import Browser
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Department
 from app.scraper.constants import graduation_programs_link
 from app.scraper.utils import (
+    get_page,
     raise_exception_if_empty_sigaa_id,
     raise_exception_if_sigaa_id_is_duplicated,
 )
 
 
-async def get_programs(page: Page, session: AsyncSession):
+async def get_programs(browser: Browser, session: AsyncSession):
     print("Scraping SIGAA programs...")
 
     programs = []
 
-    await page.goto(graduation_programs_link)
+    page = await get_page(browser, url=graduation_programs_link)
+
     programs_rows_elements = await page.querySelectorAll(
         "table.listagem tbody tr.linhaPar, table.listagem tbody tr.linhaImpar",
     )
