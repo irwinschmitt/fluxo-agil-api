@@ -1,63 +1,63 @@
 import re
 
-from pyppeteer.browser import Page
+from pyppeteer.browser import Browser
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Department
 from app.schemas.requests import DepartmentCreateRequest
 from app.scraper.constants import graduation_components_link, graduation_programs_link
-from app.scraper.utils import (
-    raise_exception_if_empty_sigaa_id,
-    raise_exception_if_sigaa_id_is_duplicated,
-)
 
 
-async def get_departments(page: Page):
+async def get_departments(browser: Browser):
     print("Scraping SIGAA departments...")
+
+    programs_page = await browser.newPage()
+    components_page = await browser.newPage()
+
+    await programs_page.goto(graduation_programs_link)
+    await components_page.goto(graduation_components_link)
 
     departments: list[DepartmentCreateRequest] = []
 
-    await page.goto(graduation_programs_link)
-    departments_elements = await page.querySelectorAll("td.subFormulario")
+    departments_acronym_and_title_elements = await programs_page.querySelectorAll(
+        "td.subFormulario"
+    )
 
-    for department_element in departments_elements:
-        department_inner_text: str = await page.evaluate(
-            "(element) => element.innerText", department_element
+    departments_sigaa_id_elements = await components_page.querySelectorAll(
+        "select[id='form:unidades'] option"
+    )
+
+    for acronym_and_title_element in departments_acronym_and_title_elements:
+        acronym_and_title: str = await programs_page.evaluate(
+            "(element) => element.innerText", acronym_and_title_element
         )
 
-        [acronym, title] = department_inner_text.split(" - ")
+        [acronym, title] = acronym_and_title.split(" - ")
 
         if not acronym or not title:
             continue
 
-        departments.append({"acronym": acronym, "title": title})
+        for sigaa_id_element in departments_sigaa_id_elements:
+            inner_text: str = await components_page.evaluate(
+                "(element) => element.innerText", sigaa_id_element
+            )
 
-    await page.goto(graduation_components_link)
+            department_title = re.sub(r"\s+", " ", inner_text).split(" - ")[0]
 
-    departments_elements = await page.querySelectorAll(
-        "select[id='form:unidades'] option"
-    )
+            if title != department_title:
+                continue
 
-    for department_element in departments_elements:
-        department_inner_text: str = await page.evaluate(
-            "(element) => element.innerText", department_element
-        )
+            sigaa_id: int = await components_page.evaluate(
+                "(element) => parseInt(element.getAttribute('value'))",
+                sigaa_id_element,
+            )
 
-        department_inner_text = re.sub(r"\s+", " ", department_inner_text)
+            department = DepartmentCreateRequest(
+                acronym=acronym, title=title, sigaa_id=sigaa_id
+            )
 
-        for index, department in enumerate(departments):
-            department["title"] = re.sub(r"\s+", " ", department["title"])
-
-            if department["title"] == department_inner_text.split(" - ")[0]:
-                sigaa_id = await page.evaluate(
-                    "(element) => element.getAttribute('value')", department_element
-                )
-
-                departments[index]["sigaa_id"] = int(sigaa_id)
-
-    raise_exception_if_sigaa_id_is_duplicated(departments)
-    raise_exception_if_empty_sigaa_id(departments)
+            departments.append(department)
 
     return departments
 
@@ -67,25 +67,32 @@ async def create_departments(
 ):
     print("Creating departments in the database...")
 
-    result = await session.execute(
-        select(Department).where(
-            Department.sigaa_id.in_([d["sigaa_id"] for d in departments])
-        )
+    new_departments_sigaa_ids = [department.sigaa_id for department in departments]
+
+    new_departments_query_result = await session.execute(
+        select(Department).where(Department.sigaa_id.in_(new_departments_sigaa_ids))
     )
 
-    db_departments = result.scalars().all()
+    db_departments = new_departments_query_result.scalars().all()
 
     for department in departments:
         db_department = next(
-            (d for d in db_departments if d.sigaa_id == department["sigaa_id"]), None
+            (
+                db_department
+                for db_department in db_departments
+                if db_department.sigaa_id == department.sigaa_id
+            ),
+            None,
         )
 
         if db_department is None:
-            db_department = Department(**department)
-            session.add(db_department)
+            # create new department
+            session.add(Department(**department.dict()))
+
         else:
-            db_department.acronym = department["acronym"]
-            db_department.title = department["title"]
+            # update existent department
+            db_department.acronym = department.acronym
+            db_department.title = department.title
 
     await session.commit()
 
