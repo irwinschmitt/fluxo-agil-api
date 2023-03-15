@@ -28,3 +28,11 @@ class DepartmentCreateRequest(BaseRequest):
 class DepartmentUpdateRequest(BaseRequest):
     acronym: str | None
     title: str | None
+
+
+class ProgramCreateRequest(BaseRequest):
+    sigaa_id: int
+    title: str
+    degree: str
+    shift: str
+    department_id: int
