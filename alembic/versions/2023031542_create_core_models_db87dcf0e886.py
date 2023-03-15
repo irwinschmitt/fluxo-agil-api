@@ -1,8 +1,8 @@
 """create_core_models
 
-Revision ID: fa87e329aa34
+Revision ID: db87dcf0e886
 Revises: 07c71f4389b6
-Create Date: 2023-02-17 18:07:26.693032
+Create Date: 2023-03-15 19:42:14.904765
 
 """
 import sqlalchemy as sa
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "fa87e329aa34"
+revision = "db87dcf0e886"
 down_revision = "07c71f4389b6"
 branch_labels = None
 depends_on = None
@@ -55,9 +55,9 @@ def upgrade():
         sa.Column(
             "degree",
             sa.Enum("BACHELOR", "LICENTIATE", native_enum=False),
-            nullable=False,
+            nullable=True,
         ),
-        sa.Column("shift", sa.Enum("DAY", "NIGHT", native_enum=False), nullable=False),
+        sa.Column("shift", sa.Enum("DAY", "NIGHT", native_enum=False), nullable=True),
         sa.Column("department_id", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(
             ["department_id"],

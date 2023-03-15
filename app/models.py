@@ -56,8 +56,8 @@ class Program(Base):
     id: Mapped[int_pk]
     sigaa_id: Mapped[int_unique_index]
     title: Mapped[str]
-    degree: Mapped[Literal["BACHELOR", "LICENTIATE"]]
-    shift: Mapped[Literal["DAY", "NIGHT"]]
+    degree: Mapped[Literal["BACHELOR", "LICENTIATE"] | None]
+    shift: Mapped[Literal["DAY", "NIGHT"] | None]
 
     department_id: Mapped[int] = mapped_column(ForeignKey("department.id"))
 

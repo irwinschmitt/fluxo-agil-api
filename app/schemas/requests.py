@@ -33,6 +33,6 @@ class DepartmentUpdateRequest(BaseRequest):
 class ProgramCreateRequest(BaseRequest):
     sigaa_id: int
     title: str
-    degree: str
-    shift: str
+    degree: str | None = None
+    shift: str | None = None
     department_id: int

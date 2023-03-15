@@ -5,7 +5,7 @@ from pyppeteer.element_handle import ElementHandle
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Department
+from app.models import Department, Program
 from app.schemas.requests import ProgramCreateRequest
 from app.scraper.constants import graduation_programs_link
 from app.scraper.utils import get_page
@@ -20,7 +20,7 @@ async def get_programs_tr_elements(page: Page):
 
 
 async def get_program_attributes(program_tr_element: ElementHandle):
-    [title, degree, shift, *_] = await program_tr_element.querySelectorAllEval(
+    [title, _degree, _shift, *_] = await program_tr_element.querySelectorAllEval(
         "td", "tds => tds.map(td => td.innerText)"
     )
 
@@ -33,7 +33,7 @@ async def get_program_attributes(program_tr_element: ElementHandle):
 
     sigaa_id = int(sigaa_id_match.group(1))
 
-    return sigaa_id, title, degree, shift
+    return sigaa_id, title
 
 
 async def get_department_id(
@@ -76,20 +76,38 @@ async def get_programs(browser: Browser, session: AsyncSession):
     programs_tr_elements = await get_programs_tr_elements(page)
 
     for program_tr_element in programs_tr_elements:
-        sigaa_id, title, degree, shift = await get_program_attributes(
-            program_tr_element
-        )
+        sigaa_id, title = await get_program_attributes(program_tr_element)
 
         department_id = await get_department_id(page, program_tr_element, session)
 
         program = ProgramCreateRequest(
-            sigaa_id=sigaa_id,
-            title=title,
-            degree=degree,
-            shift=shift,
-            department_id=department_id,
+            sigaa_id=sigaa_id, title=title, department_id=department_id
         )
 
         programs.append(program)
 
     return programs
+
+
+async def get_db_program_by_sigaa_id(session: AsyncSession, sigaa_id: int):
+    result = await session.execute(select(Program).where(Program.sigaa_id == sigaa_id))
+
+    return result.scalars().one_or_none()
+
+
+async def create_programs(session: AsyncSession, programs: list[ProgramCreateRequest]):
+    print("Creating programs in the database...")
+
+    for program in programs:
+        current_db_program = await get_db_program_by_sigaa_id(session, program.sigaa_id)
+        new_db_program = Program(**program.dict())
+
+        if current_db_program:
+            current_db_program = new_db_program
+
+        else:
+            session.add(new_db_program)
+
+    await session.commit()
+
+    print("Programs created")

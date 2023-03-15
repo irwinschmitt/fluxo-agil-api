@@ -4,7 +4,7 @@ from pyppeteer import launch
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.session import async_session
-from app.scraper.courses import get_programs
+from app.scraper.courses import create_programs, get_programs
 from app.scraper.departments import create_departments, get_departments
 
 
@@ -15,7 +15,7 @@ async def create_sigaa_data(session: AsyncSession):
     await create_departments(session, departments)
 
     programs = await get_programs(browser, session)
-    print(f"[TODO] Create {len(programs)} programs")
+    await create_programs(session, programs)
 
     await browser.close()
 

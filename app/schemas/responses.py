@@ -33,6 +33,6 @@ class ProgramResponse(BaseResponse):
     id: str
     sigaa_id: int
     title: str
-    degree: str
-    shift: str
+    degree: str | None
+    shift: str | None
     department_id: str
