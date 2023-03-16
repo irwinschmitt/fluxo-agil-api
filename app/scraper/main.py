@@ -4,8 +4,11 @@ from pyppeteer import launch
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.session import async_session
-from app.scraper.courses import create_programs, get_programs
+from app.scraper.curricula import get_curricula
 from app.scraper.departments import create_departments, get_departments
+from app.scraper.programs import create_programs, get_programs
+
+software_engineering_program_sigaa_id = 414924
 
 
 async def create_sigaa_data(session: AsyncSession):
@@ -16,6 +19,11 @@ async def create_sigaa_data(session: AsyncSession):
 
     programs = await get_programs(browser, session)
     await create_programs(session, programs)
+
+    curricula = await get_curricula(
+        browser, program_sigaa_id=software_engineering_program_sigaa_id
+    )
+    print(curricula)
 
     await browser.close()
 
