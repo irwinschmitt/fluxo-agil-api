@@ -29,6 +29,12 @@ Python 3.11 is required.
    poetry run uvicorn app.main:app --reload
    ```
 
+## Database
+
+You can access the database diagram in this [link](https://dbdiagram.io/d/6340f3c3f0018a1c5fbdb6c5).
+
+![Database](/images/db_model.png)
+
 ## Scraper
 
 To recommend discipline flows, it is necessary to have information on the structure of departments, disciplines, curricula, etc.
