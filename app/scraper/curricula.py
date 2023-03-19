@@ -6,6 +6,34 @@ from pyppeteer.element_handle import ElementHandle
 from app.scraper.utils import get_graduation_program_curricula_link, get_page
 
 
+async def get_curriculum_anchor_element(page: Page, curriculum_sigaa_id: str):
+    [element] = await page.Jx(f"//tr[contains(., '{curriculum_sigaa_id}')]")
+
+    anchor = await element.querySelector("a[title='Relatório da Estrutura Curricular']")
+
+    return anchor
+
+
+async def open_curriculum_in_new_tab(
+    browser: Browser, program_sigaa_id: int, curriculum_sigaa_id: str
+):
+    # there is no url for a curriculum
+    curricula_link = get_graduation_program_curricula_link(program_sigaa_id)
+
+    page = await browser.newPage()
+    await page.goto(curricula_link)
+
+    a_element = await get_curriculum_anchor_element(page, curriculum_sigaa_id)
+
+    if not a_element:
+        raise Exception(f"Curriculum {curriculum_sigaa_id} link not found")
+
+    await a_element.click()
+    await page.waitForNavigation()
+
+    return page
+
+
 async def get_curriculum_attributes(curriculum_tr_element: ElementHandle):
     raw_sigaa_id_and_start_year: str
     raw_active: str
@@ -56,12 +84,6 @@ async def get_curricula(browser: Browser, program_sigaa_id: int):
             curricula_tr_element
         )
 
-        curricula.append(
-            {
-                "sigaa_id": sigaa_id,
-                "start_year": start_year,
-                "active": active,
-            }
-        )
+        await open_curriculum_in_new_tab(browser, program_sigaa_id, sigaa_id)
 
     return curricula
