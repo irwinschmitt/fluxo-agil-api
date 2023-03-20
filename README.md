@@ -46,3 +46,9 @@ The diagram below shows from which SIGAA pages data can be obtained from (you ca
 In the future, scraper should have its own repository.
 
 ![Image](/images/scraper-diagram.png)
+
+## Future
+
+In the future, scraper should be moved to its own repository, rewritten with Puppeteer (pyppeteer just replicates Puppeteer), to become a standalone API for multiple apps.
+
+But, you know... first we'll make the project work, then we'll improve.
