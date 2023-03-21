@@ -34,7 +34,7 @@ async def get_cell_text_by_header_text(page: Page, th_text: str) -> str:
     return cell_inner_text
 
 
-async def get_curriculum(page: Page) -> CurriculumCreateRequest:
+async def get_curriculum(page: Page, program_sigaa_id: int) -> CurriculumCreateRequest:
     # Geral
     sigaa_id = await get_cell_text_by_header_text(page, "Código")
     start_year, start_period = await get_start_period_curriculum(page)
@@ -92,7 +92,7 @@ async def get_curriculum(page: Page) -> CurriculumCreateRequest:
         max_complementary_components_workload=format_workload(
             max_complementary_components_workload
         ),
-        program_id=1,
+        program_id=program_sigaa_id,
     )
 
     return curriculum
@@ -167,7 +167,7 @@ async def get_curricula(browser: Browser, program_sigaa_id: int):
 
     page = await get_page(browser, url=curricula_link)
 
-    curricula = []
+    curricula: list[CurriculumCreateRequest] = []
 
     curricula_tr_elements = await get_curricula_tr_elements(page)
 
@@ -180,7 +180,8 @@ async def get_curricula(browser: Browser, program_sigaa_id: int):
             browser, program_sigaa_id, sigaa_id
         )
 
-        curriculum = await get_curriculum(curriculum_page)
-        print(curriculum)
+        curriculum = await get_curriculum(curriculum_page, program_sigaa_id)
+
+        curricula.append(curriculum)
 
     return curricula
