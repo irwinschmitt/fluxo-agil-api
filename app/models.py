@@ -66,10 +66,10 @@ class Curriculum(Base):
     __tablename__ = "curriculum"
 
     id: Mapped[int_pk]
-    sigaa_id: Mapped[int_unique_index]
+    sigaa_id: Mapped[str_unique_index]
     active: Mapped[bool]
     start_year: Mapped[int]
-    star_period: Mapped[int]
+    start_period: Mapped[int]
     min_periods: Mapped[int]
     max_periods: Mapped[int]
     min_period_workload: Mapped[int]

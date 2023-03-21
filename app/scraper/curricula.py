@@ -2,8 +2,12 @@ import re
 
 from pyppeteer.browser import Browser, Page
 from pyppeteer.element_handle import ElementHandle
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models import Curriculum
 from app.schemas.requests import CurriculumCreateRequest
+from app.scraper.programs import get_db_program_by_sigaa_id
 from app.scraper.utils import get_graduation_program_curricula_link, get_page
 
 
@@ -11,7 +15,7 @@ def format_workload(workload: str) -> int:
     return int(workload.replace("h", ""))
 
 
-async def get_start_period_curriculum(page: Page):
+async def get_start_period_curriculum(page: Page) -> tuple[int, int]:
     raw_start_year_and_period = await get_cell_text_by_header_text(
         page, "Período Letivo de Entrada em Vigor"
     )
@@ -34,7 +38,18 @@ async def get_cell_text_by_header_text(page: Page, th_text: str) -> str:
     return cell_inner_text
 
 
-async def get_curriculum(page: Page, program_sigaa_id: int) -> CurriculumCreateRequest:
+async def get_program_id_by_sigaa_id(session: AsyncSession, sigaa_id: int) -> int:
+    db_program = await get_db_program_by_sigaa_id(session, sigaa_id)
+
+    if not db_program:
+        raise Exception(f"Program with SIGAA ID {sigaa_id} not found")
+
+    return db_program.id
+
+
+async def get_curriculum(
+    session: AsyncSession, page: Page, program_sigaa_id: int
+) -> CurriculumCreateRequest:
     # Geral
     sigaa_id = await get_cell_text_by_header_text(page, "Código")
     start_year, start_period = await get_start_period_curriculum(page)
@@ -69,6 +84,8 @@ async def get_curriculum(page: Page, program_sigaa_id: int) -> CurriculumCreateR
         page, "Carga Horária Máxima de Componentes Eletivos"
     )
 
+    program_id = await get_program_id_by_sigaa_id(session, program_sigaa_id)
+
     curriculum = CurriculumCreateRequest(
         sigaa_id=sigaa_id,
         active=True,
@@ -92,7 +109,7 @@ async def get_curriculum(page: Page, program_sigaa_id: int) -> CurriculumCreateR
         max_complementary_components_workload=format_workload(
             max_complementary_components_workload
         ),
-        program_id=program_sigaa_id,
+        program_id=program_id,
     )
 
     return curriculum
@@ -160,7 +177,7 @@ async def get_curricula_tr_elements(page: Page):
     return await page.querySelectorAll(curricula_tr_selector)
 
 
-async def get_curricula(browser: Browser, program_sigaa_id: int):
+async def get_curricula(browser: Browser, program_sigaa_id: int, session: AsyncSession):
     print("Scraping SIGAA curricula...")
 
     curricula_link = get_graduation_program_curricula_link(program_sigaa_id)
@@ -180,8 +197,38 @@ async def get_curricula(browser: Browser, program_sigaa_id: int):
             browser, program_sigaa_id, sigaa_id
         )
 
-        curriculum = await get_curriculum(curriculum_page, program_sigaa_id)
+        curriculum = await get_curriculum(session, curriculum_page, program_sigaa_id)
 
         curricula.append(curriculum)
 
     return curricula
+
+
+async def get_db_curriculum_by_sigaa_id(session: AsyncSession, sigaa_id: str):
+    result = await session.execute(
+        select(Curriculum).where(Curriculum.sigaa_id == sigaa_id)
+    )
+
+    return result.scalars().one_or_none()
+
+
+async def create_curricula(
+    session: AsyncSession, curricula: list[CurriculumCreateRequest]
+):
+    print("Creating curricula in the database...")
+
+    for curriculum in curricula:
+        current_db_curriculum = await get_db_curriculum_by_sigaa_id(
+            session, curriculum.sigaa_id
+        )
+        new_db_curriculum = Curriculum(**curriculum.dict())
+
+        if current_db_curriculum:
+            current_db_curriculum = new_db_curriculum
+
+        else:
+            session.add(new_db_curriculum)
+
+    await session.commit()
+
+    print("Curricula created")

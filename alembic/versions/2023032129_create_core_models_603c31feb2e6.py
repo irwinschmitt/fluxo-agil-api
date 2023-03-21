@@ -1,8 +1,8 @@
 """create_core_models
 
-Revision ID: db87dcf0e886
+Revision ID: 603c31feb2e6
 Revises: 07c71f4389b6
-Create Date: 2023-03-15 19:42:14.904765
+Create Date: 2023-03-21 18:29:50.790924
 
 """
 import sqlalchemy as sa
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "db87dcf0e886"
+revision = "603c31feb2e6"
 down_revision = "07c71f4389b6"
 branch_labels = None
 depends_on = None
@@ -84,10 +84,10 @@ def upgrade():
     op.create_table(
         "curriculum",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("sigaa_id", sa.Integer(), nullable=False),
+        sa.Column("sigaa_id", sa.String(), nullable=False),
         sa.Column("active", sa.Boolean(), nullable=False),
         sa.Column("start_year", sa.Integer(), nullable=False),
-        sa.Column("star_period", sa.Integer(), nullable=False),
+        sa.Column("start_period", sa.Integer(), nullable=False),
         sa.Column("min_periods", sa.Integer(), nullable=False),
         sa.Column("max_periods", sa.Integer(), nullable=False),
         sa.Column("min_period_workload", sa.Integer(), nullable=False),
