@@ -23,14 +23,14 @@ class UserResponse(BaseResponse):
 
 
 class DepartmentResponse(BaseResponse):
-    id: str
+    id: int
     sigaa_id: int
     acronym: str
     title: str
 
 
 class ProgramResponse(BaseResponse):
-    id: str
+    id: int
     sigaa_id: int
     title: str
     degree: str | None
