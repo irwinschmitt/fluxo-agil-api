@@ -177,31 +177,39 @@ async def get_curricula_tr_elements(page: Page):
     return await page.querySelectorAll(curricula_tr_selector)
 
 
-async def get_curricula(browser: Browser, program_sigaa_id: int, session: AsyncSession):
+async def get_curricula(
+    curricula_pages: list[Page], program_sigaa_id: int, session: AsyncSession
+):
     print("Scraping SIGAA curricula...")
 
+    curricula: list[CurriculumCreateRequest] = []
+
+    for page in curricula_pages:
+        curriculum = await get_curriculum(session, page, program_sigaa_id)
+        curricula.append(curriculum)
+
+    return curricula
+
+
+async def get_curricula_pages(browser: Browser, program_sigaa_id: int) -> list[Page]:
     curricula_link = get_graduation_program_curricula_link(program_sigaa_id)
 
     page = await get_page(browser, url=curricula_link)
 
-    curricula: list[CurriculumCreateRequest] = []
-
     curricula_tr_elements = await get_curricula_tr_elements(page)
 
+    curricula_pages: list[Page] = []
+
     for curricula_tr_element in curricula_tr_elements:
-        sigaa_id, start_year, active = await get_main_curriculum_attributes(
-            curricula_tr_element
-        )
+        sigaa_id, *_ = await get_main_curriculum_attributes(curricula_tr_element)
 
         curriculum_page = await open_curriculum_in_new_tab(
             browser, program_sigaa_id, sigaa_id
         )
 
-        curriculum = await get_curriculum(session, curriculum_page, program_sigaa_id)
+        curricula_pages.append(curriculum_page)
 
-        curricula.append(curriculum)
-
-    return curricula
+    return curricula_pages
 
 
 async def get_db_curriculum_by_sigaa_id(session: AsyncSession, sigaa_id: str):
@@ -232,3 +240,42 @@ async def create_curricula(
     await session.commit()
 
     print("Curricula created")
+
+
+async def get_table_by_title(page: Page, title: str):
+    [table_element] = await page.xpath(
+        f"//table[descendant::tr[1][contains(., '{title}')]]"
+    )
+
+    return table_element
+
+
+async def get_components_tr_elements(electives_table: ElementHandle):
+    return await electives_table.querySelectorAll("tr.componentes")
+
+
+async def get_components_sigaa_ids(tr_elements: list[ElementHandle]):
+    sigaa_ids: list[str] = []
+
+    for tr_element in tr_elements:
+        sigaa_id: str = await tr_element.Jeval("td", "td => td.innerText.split(' ')[0]")
+
+        sigaa_ids.append(sigaa_id)
+
+    return sigaa_ids
+
+
+async def get_curriculum_elective_components_sigaa_ids(curriculum_page: Page):
+    electives_table = await get_table_by_title(curriculum_page, "Optativas")
+    electives_tr = await get_components_tr_elements(electives_table)
+    electives_sigaa_ids = set(await get_components_sigaa_ids(electives_tr))
+
+    return electives_sigaa_ids
+
+
+async def get_curriculum_mandatory_components_sigaa_ids(curriculum_page: Page):
+    mandatory_table = await get_table_by_title(curriculum_page, " Nível")
+    mandatory_tr = await get_components_tr_elements(mandatory_table)
+    mandatory_sigaa_ids = set(await get_components_sigaa_ids(mandatory_tr))
+
+    return mandatory_sigaa_ids
