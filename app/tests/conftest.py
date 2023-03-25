@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import config, security
 from app.core.session import async_engine, async_session
+from app.db.models import Base, User
 from app.main import app
-from app.models import Base, User
 
 default_user_id = "b75365d9-7bf9-4f54-add5-aeab333a087b"
 default_user_email = "geralt@wiedzmin.pl"

@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.models import Department
+from app.db.models import Department
 from app.schemas.requests import DepartmentCreateRequest, DepartmentUpdateRequest
 from app.schemas.responses import DepartmentResponse
 

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core import config, security
-from app.models import User
+from app.db.models import User
 from app.schemas.requests import RefreshTokenRequest
 from app.schemas.responses import AccessTokenResponse
 

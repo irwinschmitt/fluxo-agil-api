@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.models import Curriculum
+from app.db.models import Curriculum
 from app.schemas.responses import CurriculumResponse
 
 router = APIRouter()

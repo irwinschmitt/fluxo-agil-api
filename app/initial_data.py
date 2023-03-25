@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import config, security
 from app.core.session import async_session
-from app.models import User
+from app.db.models import User
 from app.scraper.main import create_sigaa_data
 
 

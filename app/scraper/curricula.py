@@ -5,7 +5,7 @@ from pyppeteer.element_handle import ElementHandle
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Curriculum
+from app.db.models import Curriculum
 from app.schemas.requests import CurriculumCreateRequest
 from app.scraper.programs import get_db_program_by_sigaa_id
 from app.scraper.utils import get_graduation_program_curricula_link, get_page
