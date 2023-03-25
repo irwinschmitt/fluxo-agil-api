@@ -47,6 +47,16 @@ In the future, scraper should have its own repository.
 
 ![Image](/images/scraper-diagram.png)
 
+### Components
+
+#### How to find the department of a component?
+
+It's not that simple to know the department of a component just by its code. For example, both components `PPG0105` and `PPG/MUS2727` are administered by the same department [`PPG/MUS`](https://sigaa.unb.br/sigaa/public/departamento/componentes.jsf?id=873). So it's not enough to store the prefix in the Department model.
+
+One of the ways to find out which department is responsible for a component is to open the component's page and search for both the department's `title` and `acronym`.
+
+Another way is to search for the code on the [component search page](https://sigaa.unb.br/sigaa/public/componentes/busca_componentes.jsf), but it is necessary to search at each level of education (graduation, stricto sensu, lato sensu etc).
+
 ## Future
 
 In the future, scraper should be moved to its own repository, rewritten with Puppeteer (pyppeteer just replicates Puppeteer), to become a standalone API for multiple apps.

@@ -1,105 +1,72 @@
-import re
+from pyppeteer.browser import Browser, Page
 
-from pyppeteer.browser import Browser
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models import Department
-from app.schemas.requests import DepartmentCreateRequest
-from app.scraper.constants import graduation_components_link, graduation_programs_link
+from app.scraper.constants import (
+    ELEMENT_INNER_TEXT,
+    components_link,
+    department_base_components_url,
+)
 from app.scraper.utils import get_page
+
+department_log_base_prefix = "[Department]"
+
+
+async def get_departments_sigaa_ids(page: Page) -> set[int]:
+    """Get the SIGAA IDs of the departments."""
+
+    options_selector = "select[id='form:unidades'] option"
+
+    options_page_function = "(elements) => elements.map((element) => \
+        parseInt(element.getAttribute('value')))\
+        .filter((value) => value > 0)"
+
+    sigaa_ids: list[int] = await page.JJeval(options_selector, options_page_function)
+
+    departments_sigaa_ids = set()
+    departments_sigaa_ids.update(sigaa_ids)
+
+    return departments_sigaa_ids
+
+
+async def get_department_components_page(browser: Browser, sigaa_id: int):
+    """Get the components page of a department."""
+
+    department_components_url = f"{department_base_components_url}?id={sigaa_id}"
+
+    department_components_page = await get_page(browser, url=department_components_url)
+
+    return department_components_page
+
+
+async def get_department_header_attributes(page: Page) -> tuple[str, str]:
+    header = await page.querySelector("#colDirTop")
+
+    if header is None:
+        raise Exception("Department header element not found")
+
+    acronym = await header.Jeval("h1", ELEMENT_INNER_TEXT)
+    title = await header.Jeval("h2", ELEMENT_INNER_TEXT)
+
+    return acronym, title
+
+
+def log_department(sigaa_id: int, acronym: str, title: str):
+    """Log the department information."""
+
+    print(f"{department_log_base_prefix}[{sigaa_id}] {acronym} - {title}")
 
 
 async def get_departments(browser: Browser):
-    print("Scraping SIGAA departments...")
+    components_page = await get_page(browser, url=components_link)
+    departments_sigaa_ids = await get_departments_sigaa_ids(components_page)
 
-    programs_page = await get_page(browser, url=graduation_programs_link)
-    components_page = await get_page(browser, url=graduation_components_link)
+    for sigaa_id in departments_sigaa_ids:
+        department_page = await get_department_components_page(browser, sigaa_id)
+        acronym, title = await get_department_header_attributes(department_page)
 
-    departments: list[DepartmentCreateRequest] = []
+        log_department(sigaa_id, acronym, title)
 
-    departments_acronym_and_title_elements = await programs_page.querySelectorAll(
-        "td.subFormulario"
-    )
-
-    departments_sigaa_id_elements = await components_page.querySelectorAll(
-        "select[id='form:unidades'] option"
-    )
-
-    for acronym_and_title_element in departments_acronym_and_title_elements:
-        acronym_and_title: str = await programs_page.evaluate(
-            "(element) => element.innerText", acronym_and_title_element
-        )
-
-        [acronym, title] = acronym_and_title.split(" - ")
-
-        if not acronym or not title:
-            continue
-
-        for sigaa_id_element in departments_sigaa_id_elements:
-            inner_text: str = await components_page.evaluate(
-                "(element) => element.innerText", sigaa_id_element
-            )
-
-            department_title = re.sub(r"\s+", " ", inner_text).split(" - ")[0]
-
-            if title != department_title:
-                continue
-
-            sigaa_id: int = await components_page.evaluate(
-                "(element) => parseInt(element.getAttribute('value'))",
-                sigaa_id_element,
-            )
-
-            department = DepartmentCreateRequest(
-                acronym=acronym, title=title, sigaa_id=sigaa_id
-            )
-
-            departments.append(department)
-
-    return departments
+        await department_page.waitFor(1000)
 
 
-async def create_departments(
-    session: AsyncSession, departments: list[DepartmentCreateRequest]
-):
-    print("Creating departments in the database...")
-
-    new_departments_sigaa_ids = [department.sigaa_id for department in departments]
-
-    new_departments_query_result = await session.execute(
-        select(Department).where(Department.sigaa_id.in_(new_departments_sigaa_ids))
-    )
-
-    db_departments = new_departments_query_result.scalars().all()
-
-    for department in departments:
-        db_department = next(
-            (
-                db_department
-                for db_department in db_departments
-                if db_department.sigaa_id == department.sigaa_id
-            ),
-            None,
-        )
-
-        if db_department is None:
-            # create new department
-            session.add(Department(**department.dict()))
-
-        else:
-            # update existent department
-            db_department.acronym = department.acronym
-            db_department.title = department.title
-
-    await session.commit()
-
-    print("Departments created")
-
-
-async def get_department_by_acronym(acronym: str, session: AsyncSession):
-    result = await session.execute(
-        select(Department).where(Department.acronym == acronym)
-    )
-
-    return result.scalars().one()
+async def scrape_departments(browser: Browser):
+    await get_departments(browser)
