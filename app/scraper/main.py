@@ -5,6 +5,7 @@ from pyppeteer.browser import Browser
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.session import async_session
+from app.scraper.components import get_component
 from app.scraper.curricula import (
     create_curricula,
     get_curricula,
@@ -38,6 +39,11 @@ async def scrape_curricula_by_program__sigaa_id(
     return curricula_pages
 
 
+async def scrape_components_by_sigaa_ids(sigaa_ids: set[str], session: AsyncSession):
+    for sigaa_id in sigaa_ids:
+        await get_component(sigaa_id, session)
+
+
 async def create_sigaa_data(session: AsyncSession, program_sigaa_id: int):
     browser = await launch(headless=True, executablePath="/usr/bin/google-chrome")
 
@@ -57,9 +63,7 @@ async def create_sigaa_data(session: AsyncSession, program_sigaa_id: int):
 
         program_components_sigaa_ids.update(curriculum_components_sigaa_ids)
 
-    print(
-        f"{len(program_components_sigaa_ids)} components for {program_sigaa_id} program"
-    )
+    await scrape_components_by_sigaa_ids(program_components_sigaa_ids, session)
 
     await browser.close()
 

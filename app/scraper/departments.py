@@ -95,3 +95,11 @@ async def create_departments(
     await session.commit()
 
     print("Departments created")
+
+
+async def get_department_by_acronym(acronym: str, session: AsyncSession):
+    result = await session.execute(
+        select(Department).where(Department.acronym == acronym)
+    )
+
+    return result.scalars().one()
