@@ -1,5 +1,7 @@
 from pyppeteer.browser import Browser, Page
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.department import store_or_update_department
 from app.scraper.constants import (
     ELEMENT_INNER_TEXT,
     components_link,
@@ -7,7 +9,7 @@ from app.scraper.constants import (
 )
 from app.scraper.utils import get_page
 
-department_log_base_prefix = "[Department]"
+department_log_base_prefix = "[Departments]"
 
 
 async def get_departments_sigaa_ids(page: Page) -> set[int]:
@@ -55,18 +57,17 @@ def log_department(sigaa_id: int, acronym: str, title: str):
     print(f"{department_log_base_prefix}[{sigaa_id}] {acronym} - {title}")
 
 
-async def get_departments(browser: Browser):
+async def scrape_departments(browser: Browser, session: AsyncSession):
     components_page = await get_page(browser, url=components_link)
     departments_sigaa_ids = await get_departments_sigaa_ids(components_page)
+
+    print(f"{department_log_base_prefix} {len(departments_sigaa_ids)} to be scraped")
 
     for sigaa_id in departments_sigaa_ids:
         department_page = await get_department_components_page(browser, sigaa_id)
         acronym, title = await get_department_header_attributes(department_page)
-
         log_department(sigaa_id, acronym, title)
 
+        await store_or_update_department(session, sigaa_id, acronym, title)
+
         await department_page.waitFor(1000)
-
-
-async def scrape_departments(browser: Browser):
-    await get_departments(browser)

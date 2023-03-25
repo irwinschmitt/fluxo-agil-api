@@ -44,7 +44,7 @@ swe_program_sigaa_id = 414924
 async def create_sigaa_data(session: AsyncSession, program_sigaa_id: int):
     browser = await launch(headless=True, executablePath="/usr/bin/google-chrome")
 
-    await scrape_departments(browser)
+    await scrape_departments(browser, session)
     # await scrape_all_programs(browser, session)
 
     # curricula_pages = await scrape_curricula_by_program__sigaa_id(
