@@ -250,8 +250,8 @@ async def get_table_by_title(page: Page, title: str):
     return table_element
 
 
-async def get_components_tr_elements(electives_table: ElementHandle):
-    return await electives_table.querySelectorAll("tr.componentes")
+async def get_components_tr_elements(element: ElementHandle | Page):
+    return await element.querySelectorAll("tr.componentes")
 
 
 async def get_components_sigaa_ids(tr_elements: list[ElementHandle]):
@@ -265,17 +265,9 @@ async def get_components_sigaa_ids(tr_elements: list[ElementHandle]):
     return sigaa_ids
 
 
-async def get_curriculum_elective_components_sigaa_ids(curriculum_page: Page):
-    electives_table = await get_table_by_title(curriculum_page, "Optativas")
-    electives_tr = await get_components_tr_elements(electives_table)
-    electives_sigaa_ids = set(await get_components_sigaa_ids(electives_tr))
+async def get_curriculum_components_sigaa_ids(curriculum_page: Page):
+    components_tr = await get_components_tr_elements(curriculum_page)
+    components_sigaa_ids = await get_components_sigaa_ids(components_tr)
+    unique_components_sigaa_ids = set(components_sigaa_ids)
 
-    return electives_sigaa_ids
-
-
-async def get_curriculum_mandatory_components_sigaa_ids(curriculum_page: Page):
-    mandatory_table = await get_table_by_title(curriculum_page, " Nível")
-    mandatory_tr = await get_components_tr_elements(mandatory_table)
-    mandatory_sigaa_ids = set(await get_components_sigaa_ids(mandatory_tr))
-
-    return mandatory_sigaa_ids
+    return unique_components_sigaa_ids

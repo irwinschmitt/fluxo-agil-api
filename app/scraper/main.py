@@ -9,8 +9,7 @@ from app.scraper.curricula import (
     create_curricula,
     get_curricula,
     get_curricula_pages,
-    get_curriculum_elective_components_sigaa_ids,
-    get_curriculum_mandatory_components_sigaa_ids,
+    get_curriculum_components_sigaa_ids,
 )
 from app.scraper.departments import create_departments, get_departments
 from app.scraper.programs import create_programs, get_programs
@@ -28,7 +27,7 @@ async def scrape_all_programs(browser: Browser, session: AsyncSession):
     await create_programs(session, programs)
 
 
-async def scrape_curricula_by_program_id(
+async def scrape_curricula_by_program__sigaa_id(
     browser: Browser, program_sigaa_id: int, session: AsyncSession
 ):
     curricula_pages = await get_curricula_pages(browser, program_sigaa_id)
@@ -45,20 +44,22 @@ async def create_sigaa_data(session: AsyncSession, program_sigaa_id: int):
     await scrape_all_departments(browser, session)
     await scrape_all_programs(browser, session)
 
-    curricula_pages = await scrape_curricula_by_program_id(
+    curricula_pages = await scrape_curricula_by_program__sigaa_id(
         browser, program_sigaa_id, session
     )
 
+    program_components_sigaa_ids: set[str] = set()
+
     for curriculum_page in curricula_pages:
-        elective_components_sigaa_ids = (
-            await get_curriculum_elective_components_sigaa_ids(curriculum_page)
-        )
-        mandatory_components_sigaa_ids = (
-            await get_curriculum_mandatory_components_sigaa_ids(curriculum_page)
+        curriculum_components_sigaa_ids = await get_curriculum_components_sigaa_ids(
+            curriculum_page
         )
 
-        print(elective_components_sigaa_ids)
-        print(mandatory_components_sigaa_ids)
+        program_components_sigaa_ids.update(curriculum_components_sigaa_ids)
+
+    print(
+        f"{len(program_components_sigaa_ids)} components for {program_sigaa_id} program"
+    )
 
     await browser.close()
 
