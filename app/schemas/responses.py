@@ -35,7 +35,7 @@ class ProgramResponse(BaseResponse):
     title: str
     degree: str | None
     shift: str | None
-    department_id: str
+    department_id: int
 
 
 class CurriculumResponse(BaseResponse):
