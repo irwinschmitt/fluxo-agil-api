@@ -22,3 +22,15 @@ async def store_or_update_department(
     await session.commit()
 
     return department
+
+
+async def get_department_by_acronym_and_title(
+    session: AsyncSession, acronym: str, title: str
+):
+    """Get a department by its acronym and title."""
+
+    expression = Department.acronym == acronym and Department.title == title
+
+    result = await session.execute(select(Department).where(expression))
+
+    return result.scalars().one()

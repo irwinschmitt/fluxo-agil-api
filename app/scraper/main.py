@@ -14,15 +14,9 @@ from app.core.session import async_session
 #     get_curricula_pages,
 # )
 from app.scraper.departments import scrape_departments
-
-# from app.scraper.programs import create_programs, get_programs
+from app.scraper.programs import scrape_programs
 
 swe_program_sigaa_id = 414924
-
-
-# async def scrape_all_programs(browser: Browser, session: AsyncSession):
-#     programs = await get_programs(browser, session)
-#     await create_programs(session, programs)
 
 
 # async def scrape_curricula_by_program__sigaa_id(
@@ -45,7 +39,7 @@ async def create_sigaa_data(session: AsyncSession, program_sigaa_id: int):
     browser = await launch(headless=True, executablePath="/usr/bin/google-chrome")
 
     await scrape_departments(browser, session)
-    # await scrape_all_programs(browser, session)
+    await scrape_programs(browser, session)
 
     # curricula_pages = await scrape_curricula_by_program__sigaa_id(
     #     browser, program_sigaa_id, session
