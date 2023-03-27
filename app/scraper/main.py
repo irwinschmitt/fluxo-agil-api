@@ -37,7 +37,7 @@ swe_program_sigaa_id = 414924
 #         await get_component(sigaa_id, session)
 
 
-async def create_sigaa_data(session: AsyncSession, program_sigaa_id: int):
+async def create_sigaa_data(session: AsyncSession, program_sigaa_id: int | None = None):
     browser = await launch(headless=True, executablePath="/usr/bin/google-chrome")
 
     await scrape_departments(browser, session)

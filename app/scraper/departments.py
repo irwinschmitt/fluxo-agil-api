@@ -71,3 +71,4 @@ async def scrape_departments(browser: Browser, session: AsyncSession):
         await store_or_update_department(session, sigaa_id, acronym, title)
 
         await department_page.waitFor(1000)
+        await department_page.close()

@@ -15,7 +15,7 @@ async def store_or_update_curriculum(session: AsyncSession, curriculum: Curricul
         current_curriculum = curriculum
 
     else:
-        session.add(current_curriculum)
+        session.add(curriculum)
 
     await session.commit()
 

@@ -291,3 +291,6 @@ async def scrape_curricula(
             await store_or_update_curriculum(session, curriculum)
 
             await curriculum_page.close()
+
+        await curricula_page.waitFor(1000)
+        await curricula_page.close()
