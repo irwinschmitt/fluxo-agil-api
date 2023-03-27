@@ -6,6 +6,9 @@ from pyppeteer import launch
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.session import async_session
+from app.scraper.curricula import scrape_curricula
+from app.scraper.departments import scrape_departments
+from app.scraper.programs import scrape_programs
 
 # from app.scraper.components import get_component
 # from app.scraper.curricula import (
@@ -13,8 +16,7 @@ from app.core.session import async_session
 #     get_curricula,
 #     get_curricula_pages,
 # )
-from app.scraper.departments import scrape_departments
-from app.scraper.programs import scrape_programs
+
 
 swe_program_sigaa_id = 414924
 
@@ -40,6 +42,7 @@ async def create_sigaa_data(session: AsyncSession, program_sigaa_id: int):
 
     await scrape_departments(browser, session)
     await scrape_programs(browser, session)
+    await scrape_curricula(browser, session, program_sigaa_id)
 
     # curricula_pages = await scrape_curricula_by_program__sigaa_id(
     #     browser, program_sigaa_id, session

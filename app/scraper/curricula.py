@@ -2,272 +2,292 @@ import re
 
 from pyppeteer.browser import Browser, Page
 from pyppeteer.element_handle import ElementHandle
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.curriculum import store_or_update_curriculum
 from app.db.models import Curriculum
-from app.schemas.requests import CurriculumCreateRequest
-from app.scraper.programs import get_db_program_by_sigaa_id
-from app.scraper.utils import get_graduation_program_curricula_link, get_page
-
-
-def format_workload(workload: str) -> int:
-    return int(workload.replace("h", ""))
-
-
-async def get_start_period_curriculum(page: Page) -> tuple[int, int]:
-    raw_start_year_and_period = await get_cell_text_by_header_text(
-        page, "Período Letivo de Entrada em Vigor"
-    )
-    [raw_start_year, raw_start_period] = raw_start_year_and_period.split(".")
-    start_year = int(raw_start_year)
-    start_period = int(raw_start_period)
-
-    return start_year, start_period
+from app.db.program import get_program_by_sigaa_id, get_programs
+from app.scraper.constants import ELEMENT_INNER_TEXT, curricula_list_base_url
+from app.scraper.utils import get_page
 
 
 async def get_cell_text_by_header_text(page: Page, th_text: str) -> str:
-    [cell_element, *_] = await page.Jx(
-        f"//th[contains(., '{th_text}')]/following-sibling::td"
-    )
+    expression = f"//th[contains(., '{th_text}')]/following-sibling::td"
+    [cell_element, *_] = await page.Jx(expression)
 
-    cell_inner_text: str = await page.evaluate(
-        "(element) => element.textContent", cell_element
-    )
+    cell_inner_text: str = await page.evaluate(ELEMENT_INNER_TEXT, cell_element)
 
     return cell_inner_text
 
 
-async def get_program_id_by_sigaa_id(session: AsyncSession, sigaa_id: int) -> int:
-    db_program = await get_db_program_by_sigaa_id(session, sigaa_id)
+async def get_programs_sigaa_ids(
+    session: AsyncSession, program_sigaa_id: int | None = None
+) -> set[int]:
+    programs_sigaa_ids: set[int] = set()
 
-    if not db_program:
-        raise Exception(f"Program with SIGAA ID {sigaa_id} not found")
+    if program_sigaa_id:
+        programs_sigaa_ids.add(program_sigaa_id)
+    else:
+        programs = await get_programs(session)
+        programs_sigaa_ids.update(program.sigaa_id for program in programs)
 
-    return db_program.id
-
-
-async def get_curriculum(
-    session: AsyncSession, page: Page, program_sigaa_id: int
-) -> CurriculumCreateRequest:
-    # Geral
-    sigaa_id = await get_cell_text_by_header_text(page, "Código")
-    start_year, start_period = await get_start_period_curriculum(page)
-
-    min_periods = await get_cell_text_by_header_text(page, "Mínimo:")
-    max_periods = await get_cell_text_by_header_text(page, "Máximo:")
-
-    min_period_workload = await get_cell_text_by_header_text(
-        page, "Carga Horária Mínima por Período Letivo"
-    )
-    max_period_workload = await get_cell_text_by_header_text(
-        page, "Carga Horária Máxima por Período Letivo"
-    )
-
-    # Total
-    min_workload = await get_cell_text_by_header_text(page, "Total Mínima")
-
-    # Obrigatórias
-    mandatory_components_workload = await get_cell_text_by_header_text(page, "Total:")
-
-    # Optativas
-    min_elective_components_workload = await get_cell_text_by_header_text(
-        page, "Carga Horária Optativa Mínima"
-    )
-    max_elective_components_workload = min_elective_components_workload
-
-    # Complementares
-    min_complementary_components_workload = await get_cell_text_by_header_text(
-        page, "Carga Horária Complementar Mínima"
-    )
-    max_complementary_components_workload = await get_cell_text_by_header_text(
-        page, "Carga Horária Máxima de Componentes Eletivos"
-    )
-
-    program_id = await get_program_id_by_sigaa_id(session, program_sigaa_id)
-
-    curriculum = CurriculumCreateRequest(
-        sigaa_id=sigaa_id,
-        active=True,
-        start_year=start_year,
-        start_period=start_period,
-        min_periods=int(min_periods),
-        max_periods=int(max_periods),
-        min_period_workload=format_workload(min_period_workload),
-        max_period_workload=format_workload(max_period_workload),
-        min_workload=format_workload(min_workload),
-        mandatory_components_workload=format_workload(mandatory_components_workload),
-        min_elective_components_workload=format_workload(
-            min_elective_components_workload
-        ),
-        max_elective_components_workload=format_workload(
-            max_elective_components_workload
-        ),
-        min_complementary_components_workload=format_workload(
-            min_complementary_components_workload
-        ),
-        max_complementary_components_workload=format_workload(
-            max_complementary_components_workload
-        ),
-        program_id=program_id,
-    )
-
-    return curriculum
+    return programs_sigaa_ids
 
 
-async def get_curriculum_anchor_element(page: Page, curriculum_sigaa_id: str):
-    [element] = await page.Jx(f"//tr[contains(., '{curriculum_sigaa_id}')]")
-
-    anchor = await element.querySelector("a[title='Relatório da Estrutura Curricular']")
-
-    return anchor
+def get_program_curricula_url(program_sigaa_id: int) -> str:
+    return f"{curricula_list_base_url}?id={program_sigaa_id}"
 
 
-async def open_curriculum_in_new_tab(
+async def get_program_curricula_page(browser: Browser, program_sigaa_id: int) -> Page:
+    program_curricula_url = get_program_curricula_url(program_sigaa_id)
+
+    page = await get_page(browser, url=program_curricula_url)
+
+    return page
+
+
+async def get_curricula_tr_elements(
+    page: Page, curriculum_sigaa_id: str | None = None
+) -> list[ElementHandle]:
+    table_xpath_selector = "//table[@id='table_lt']"
+    tr_xpath_selector = "//tr[(@class='linha_par' or @class='linha_impar')]"
+    xpath_selector = f"{table_xpath_selector}{tr_xpath_selector}"
+
+    if curriculum_sigaa_id:
+        td_xpath_selector = f"[descendant::td[contains(., '{curriculum_sigaa_id}')]]"
+        xpath_selector += td_xpath_selector
+
+    curricula_tr = await page.xpath(xpath_selector)
+
+    return curricula_tr
+
+
+async def get_curriculum_status(curriculum_tr: ElementHandle) -> bool:
+    active_elements = await curriculum_tr.xpath("td[contains(., 'Ativa')]")
+
+    return bool(active_elements)
+
+
+async def get_curriculum_page(
     browser: Browser, program_sigaa_id: int, curriculum_sigaa_id: str
-):
-    # there is no url for a curriculum
-    curricula_link = get_graduation_program_curricula_link(program_sigaa_id)
+) -> Page:
+    program_curricula_url = get_program_curricula_url(program_sigaa_id)
 
     page = await browser.newPage()
-    await page.goto(curricula_link)
+    await page.goto(program_curricula_url)
 
-    a_element = await get_curriculum_anchor_element(page, curriculum_sigaa_id)
+    [curriculum_tr] = await get_curricula_tr_elements(page, curriculum_sigaa_id)
+    button = await curriculum_tr.J("a[title='Relatório da Estrutura Curricular']")
 
-    if not a_element:
-        raise Exception(f"Curriculum {curriculum_sigaa_id} link not found")
+    if not button:
+        raise Exception("Could not find button to open curriculum page")
 
-    await a_element.click()
+    await button.click()
     await page.waitForNavigation()
 
     return page
 
 
-async def get_main_curriculum_attributes(curriculum_tr_element: ElementHandle):
-    raw_sigaa_id_and_start_year: str
-    raw_active: str
-    [
-        raw_sigaa_id_and_start_year,
-        raw_active,
-        *_,
-    ] = await curriculum_tr_element.querySelectorAllEval(
-        "td", "tds => tds.map(td => td.innerText)"
+async def get_curriculum_sigaa_id_by_tr_element(curriculum_tr: ElementHandle) -> str:
+    raw_sigaa_id = await curriculum_tr.Jeval("td:first-child", ELEMENT_INNER_TEXT)
+
+    sigaa_id_pattern = "Detalhes da Estrutura Curricular (.*),"
+    sigaa_id_match = re.search(sigaa_id_pattern, raw_sigaa_id)
+
+    if not sigaa_id_match:
+        raise Exception("Could not find curriculum sigaa_id")
+
+    sigaa_id = sigaa_id_match.group(1).strip()
+
+    return sigaa_id
+
+
+async def get_curriculum_sigaa_id(curriculum_page: Page) -> str:
+    return await get_cell_text_by_header_text(curriculum_page, "Código")
+
+
+async def get_curriculum_start_period(curriculum_page: Page) -> tuple[int, int]:
+    header_text = "Período Letivo de Entrada em Vigor"
+    raw_start_period = await get_cell_text_by_header_text(curriculum_page, header_text)
+
+    [start_year, start_period] = raw_start_period.split(".")
+    start_year = int(start_year)
+    start_period = int(start_period)
+
+    return start_year, start_period
+
+
+async def get_curriculum_min_periods(curriculum_page: Page) -> int:
+    min_periods = await get_cell_text_by_header_text(curriculum_page, "Mínimo:")
+    min_periods = int(min_periods)
+
+    return min_periods
+
+
+async def get_curriculum_max_periods(curriculum_page: Page) -> int:
+    max_periods = await get_cell_text_by_header_text(curriculum_page, "Máximo:")
+    max_periods = int(max_periods)
+
+    return max_periods
+
+
+async def get_curriculum_min_period_workload(curriculum_page: Page) -> int:
+    header_text = "Carga Horária Mínima por Período Letivo"
+    raw_workload = await get_cell_text_by_header_text(curriculum_page, header_text)
+
+    min_period_workload = format_workload_to_number(raw_workload)
+
+    return min_period_workload
+
+
+def format_workload_to_number(raw_workload: str) -> int:
+    workload = int(raw_workload.replace("h", ""))
+
+    return workload
+
+
+async def get_curriculum_max_period_workload(curriculum_page: Page) -> int:
+    header_text = "Carga Horária Máxima por Período Letivo"
+    raw_workload = await get_cell_text_by_header_text(curriculum_page, header_text)
+
+    max_period_workload = format_workload_to_number(raw_workload)
+
+    return max_period_workload
+
+
+async def get_curriculum_min_workload(curriculum_page: Page) -> int:
+    header_text = "Total Mínima"
+    raw_workload = await get_cell_text_by_header_text(curriculum_page, header_text)
+
+    min_workload = format_workload_to_number(raw_workload)
+
+    return min_workload
+
+
+async def get_curriculum_mandatory_components_workload(curriculum_page: Page) -> int:
+    header_text = "Total:"
+    raw_workload = await get_cell_text_by_header_text(curriculum_page, header_text)
+
+    mandatory_components_workload = format_workload_to_number(raw_workload)
+
+    return mandatory_components_workload
+
+
+async def get_curriculum_min_elective_components_workload(curriculum_page: Page) -> int:
+    header_text = "Carga Horária Optativa Mínima:"
+    raw_workload = await get_cell_text_by_header_text(curriculum_page, header_text)
+
+    min_elective_components_workload = format_workload_to_number(raw_workload)
+
+    return min_elective_components_workload
+
+
+async def get_curriculum_min_complementary_components_workload(
+    curriculum_page: Page,
+) -> int:
+    header_text = "Carga Horária Complementar Mínima:"
+    raw_workload = await get_cell_text_by_header_text(curriculum_page, header_text)
+
+    min_complementary_components_workload = format_workload_to_number(raw_workload)
+
+    return min_complementary_components_workload
+
+
+async def get_curriculum_max_complementary_components_workload(
+    curriculum_page: Page,
+) -> int:
+    header_text = "Carga Horária Máxima de Componentes Eletivos"
+    raw_workload = await get_cell_text_by_header_text(curriculum_page, header_text)
+
+    max_complementary_components_workload = format_workload_to_number(raw_workload)
+
+    return max_complementary_components_workload
+
+
+async def get_curriculum(
+    session: AsyncSession, curriculum_page: Page, program_sigaa_id: int, active: bool
+) -> Curriculum:
+    sigaa_id = await get_curriculum_sigaa_id(curriculum_page)
+    start_year, start_period = await get_curriculum_start_period(curriculum_page)
+    min_periods = await get_curriculum_min_periods(curriculum_page)
+    max_periods = await get_curriculum_max_periods(curriculum_page)
+    min_period_workload = await get_curriculum_min_period_workload(curriculum_page)
+    max_period_workload = await get_curriculum_max_period_workload(curriculum_page)
+    min_workload = await get_curriculum_min_workload(curriculum_page)
+
+    mandatory_components_workload = await get_curriculum_mandatory_components_workload(
+        curriculum_page
     )
 
-    sigaa_id_and_start_year_match = re.search(
-        "Detalhes da Estrutura Curricular (.*), Criado em (.*)",
-        raw_sigaa_id_and_start_year,
+    min_elective_components_workload = (
+        await get_curriculum_min_elective_components_workload(curriculum_page)
     )
 
-    if not sigaa_id_and_start_year_match:
-        raise Exception(
-            f"SIGAA ID and start year not found for curriculum: {raw_sigaa_id_and_start_year}"
-        )
+    max_elective_components_workload = min_elective_components_workload
 
-    sigaa_id = sigaa_id_and_start_year_match.group(1)
-    start_year = int(sigaa_id_and_start_year_match.group(2))
-    active = raw_active == "Ativa"
+    min_complementary_components_workload = (
+        await get_curriculum_min_complementary_components_workload(curriculum_page)
+    )
 
-    return sigaa_id, start_year, active
+    max_complementary_components_workload = (
+        await get_curriculum_max_complementary_components_workload(curriculum_page)
+    )
+
+    program = await get_program_by_sigaa_id(session, program_sigaa_id)
+
+    if not program:
+        raise Exception("Program not found")
+
+    curriculum = Curriculum(
+        sigaa_id=sigaa_id,
+        active=active,
+        start_year=start_year,
+        start_period=start_period,
+        min_periods=min_periods,
+        max_periods=max_periods,
+        min_period_workload=min_period_workload,
+        max_period_workload=max_period_workload,
+        min_workload=min_workload,
+        mandatory_components_workload=mandatory_components_workload,
+        min_elective_components_workload=min_elective_components_workload,
+        max_elective_components_workload=max_elective_components_workload,
+        min_complementary_components_workload=min_complementary_components_workload,
+        max_complementary_components_workload=max_complementary_components_workload,
+        program_id=program.id,
+    )
+
+    return curriculum
 
 
-async def get_curricula_tr_elements(page: Page):
-    curricula_tr_selector = "table#table_lt tr.linha_par, tr.linha_impar"
-
-    return await page.querySelectorAll(curricula_tr_selector)
-
-
-async def get_curricula(
-    curricula_pages: list[Page], program_sigaa_id: int, session: AsyncSession
+async def scrape_curricula(
+    browser: Browser,
+    session: AsyncSession,
+    program_sigaa_id: int | None = None,
+    only_active: bool = True,
 ):
-    print("Scraping SIGAA curricula...")
+    """Scrape and store (or update) curricula."""
 
-    curricula: list[CurriculumCreateRequest] = []
+    programs_sigaa_ids: set[int]
+    programs_sigaa_ids = await get_programs_sigaa_ids(session, program_sigaa_id)
 
-    for page in curricula_pages:
-        curriculum = await get_curriculum(session, page, program_sigaa_id)
-        curricula.append(curriculum)
+    # There are too many programs (~150) to open all tabs at once
+    for p_sigaa_id in programs_sigaa_ids:
+        curricula_page = await get_program_curricula_page(browser, p_sigaa_id)
+        curricula_tr = await get_curricula_tr_elements(curricula_page)
 
-    return curricula
+        for curriculum_tr in curricula_tr:
+            active = await get_curriculum_status(curriculum_tr)
 
+            if only_active and not active:
+                continue
 
-async def get_curricula_pages(browser: Browser, program_sigaa_id: int) -> list[Page]:
-    curricula_link = get_graduation_program_curricula_link(program_sigaa_id)
+            sigaa_id = await get_curriculum_sigaa_id_by_tr_element(curriculum_tr)
+            curriculum_page = await get_curriculum_page(browser, p_sigaa_id, sigaa_id)
 
-    page = await get_page(browser, url=curricula_link)
+            curriculum = await get_curriculum(
+                session, curriculum_page, p_sigaa_id, active
+            )
 
-    curricula_tr_elements = await get_curricula_tr_elements(page)
+            await store_or_update_curriculum(session, curriculum)
 
-    curricula_pages: list[Page] = []
-
-    for curricula_tr_element in curricula_tr_elements:
-        sigaa_id, *_ = await get_main_curriculum_attributes(curricula_tr_element)
-
-        curriculum_page = await open_curriculum_in_new_tab(
-            browser, program_sigaa_id, sigaa_id
-        )
-
-        curricula_pages.append(curriculum_page)
-
-    return curricula_pages
-
-
-async def get_db_curriculum_by_sigaa_id(session: AsyncSession, sigaa_id: str):
-    result = await session.execute(
-        select(Curriculum).where(Curriculum.sigaa_id == sigaa_id)
-    )
-
-    return result.scalars().one_or_none()
-
-
-async def create_curricula(
-    session: AsyncSession, curricula: list[CurriculumCreateRequest]
-):
-    print("Creating curricula in the database...")
-
-    for curriculum in curricula:
-        current_db_curriculum = await get_db_curriculum_by_sigaa_id(
-            session, curriculum.sigaa_id
-        )
-        new_db_curriculum = Curriculum(**curriculum.dict())
-
-        if current_db_curriculum:
-            current_db_curriculum = new_db_curriculum
-
-        else:
-            session.add(new_db_curriculum)
-
-    await session.commit()
-
-    print("Curricula created")
-
-
-async def get_table_by_title(page: Page, title: str):
-    [table_element] = await page.xpath(
-        f"//table[descendant::tr[1][contains(., '{title}')]]"
-    )
-
-    return table_element
-
-
-async def get_components_tr_elements(element: ElementHandle | Page):
-    return await element.querySelectorAll("tr.componentes")
-
-
-async def get_components_sigaa_ids(tr_elements: list[ElementHandle]):
-    sigaa_ids: list[str] = []
-
-    for tr_element in tr_elements:
-        sigaa_id: str = await tr_element.Jeval("td", "td => td.innerText.split(' ')[0]")
-
-        sigaa_ids.append(sigaa_id)
-
-    return sigaa_ids
-
-
-async def get_curriculum_components_sigaa_ids(curriculum_page: Page):
-    components_tr = await get_components_tr_elements(curriculum_page)
-    components_sigaa_ids = await get_components_sigaa_ids(components_tr)
-    unique_components_sigaa_ids = set(components_sigaa_ids)
-
-    return unique_components_sigaa_ids
+            await curriculum_page.close()

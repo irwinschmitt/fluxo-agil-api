@@ -10,13 +10,16 @@ components_link = f"{base_url}/componentes/busca_componentes.jsf"
 graduation_courses_link = base_url + "/curso/portal.jsf"
 graduation_curricula_link = base_url + "/curso/curriculo.jsf"
 
+department_base_url = f"{base_url}/departamento"
+department_base_presentation_url = f"{department_base_url}/portal.jsf"
+department_base_components_url = f"{department_base_url}/componentes.jsf"
+
 programs_base_url = f"{base_url}/curso"
 programs_list_base_url = f"{programs_base_url}/lista.jsf"
 graduation_programs_url = f"{programs_list_base_url}?nivel=G&aba=p-graduacao"
 
-department_base_url = f"{base_url}/departamento"
-department_base_presentation_url = f"{department_base_url}/portal.jsf"
-department_base_components_url = f"{department_base_url}/componentes.jsf"
+curricula_list_base_url = f"{programs_base_url}/curriculo.jsf"
+
 
 # Page functions
 
