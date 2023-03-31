@@ -56,3 +56,12 @@ class CurriculumResponse(BaseResponse):
     max_complementary_components_workload: int
 
     program_id: int
+
+
+class ComponentResponse(BaseResponse):
+    id: int
+    sigaa_id: str
+    title: str
+    type: str
+
+    department_id: int
