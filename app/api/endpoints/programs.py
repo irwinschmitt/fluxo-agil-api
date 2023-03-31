@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,3 +19,19 @@ async def read_departments(
     result = await session.execute(select(Program).offset(skip).limit(limit))
 
     return result.scalars().all()
+
+
+@router.get("/programs/{program_id}", response_model=ProgramResponse)
+async def read_department(
+    program_id: int,
+    session: AsyncSession = Depends(deps.get_session),
+):
+    """Get a department"""
+    result = await session.execute(select(Program).where(Program.id == program_id))
+
+    program = result.scalars().one_or_none()
+
+    if program is None:
+        raise HTTPException(status_code=404, detail="Programa não encontrado")
+
+    return program
