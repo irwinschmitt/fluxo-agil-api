@@ -34,3 +34,11 @@ async def get_department_by_acronym_and_title(
     result = await session.execute(select(Department).where(expression))
 
     return result.scalars().one()
+
+
+async def get_department_by_title(session: AsyncSession, title: str):
+    """Get a department by its title."""
+
+    result = await session.execute(select(Department).where(Department.title == title))
+
+    return result.scalars().one()
